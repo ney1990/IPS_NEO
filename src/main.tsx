@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './supabase';
 import './styles.css';
 import './theme-lavande.css';
+import { IconButton } from './ui/IconButton';
 
 type Workshop = { id: string; code: string; name: string; description: string; active: boolean; created_at: string; updated_at: string };
 type Equipment = { id: string; workshop_id: string; code: string; name: string; category: string; manufacturer: string; model: string; description: string; active: boolean; created_at: string };
@@ -157,6 +158,26 @@ function App() {
     } catch (e) { setError(displayError(e)); } finally { setSaving(false); }
   }
 
+  async function changeActive(entity: 'workshops' | 'equipment', id: string, active: boolean, name: string) {
+    if (!supabase || saving) return;
+    if (entity === 'workshops' && active && equipments.some(e => e.workshop_id === id && e.active)) {
+      setNotice('');
+      setError('Désactive les équipements de cet atelier avant de désactiver l’atelier.');
+      return;
+    }
+    if (active && !window.confirm(`Désactiver « ${name} » ? Cette action est réversible.`)) return;
+    const newActive = !active;
+    setSaving(true); setError(''); setNotice('');
+    try {
+      const { error } = await supabase.from(entity).update({ active: newActive }).eq('id', id).select('id').single();
+      if (error) throw error;
+      if (entity === 'workshops' && workId === id) setWork(prev => ({ ...prev, active: newActive }));
+      if (entity === 'equipment' && eqId === id) setEq(prev => ({ ...prev, active: newActive }));
+      await refresh();
+      setNotice(`${name} : ${newActive ? 'activé' : 'désactivé'}.`);
+    } catch (e) { setError(displayError(e)); } finally { setSaving(false); }
+  }
+
   const query = search.trim().toLocaleLowerCase('fr-FR');
   const visibleWorkshops = workshops.filter(w => !query || (w.code + ' ' + w.name + ' ' + w.description).toLocaleLowerCase('fr-FR').includes(query));
   const visibleEquipment = equipments.filter(e => !query || (e.code + ' ' + e.name + ' ' + e.category + ' ' + e.manufacturer + ' ' + e.model).toLocaleLowerCase('fr-FR').includes(query));
@@ -210,8 +231,12 @@ function App() {
         {notice && <div className="ok" role="status">{notice}</div>}
         {section !== 'history' && <div className="toolbar"><input aria-label="Rechercher" placeholder="Rechercher par code, désignation…" value={search} onChange={e => setSearch(e.target.value)} /><span>{section === 'workshops' ? visibleWorkshops.length : visibleEquipment.length} élément(s)</span></div>}
         {section === 'workshops' && <div className="two-columns">
-          <section className="panel"><div className="panel-head"><h2>Référentiel ateliers</h2></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Désignation</th><th>Statut</th><th>Équipements</th><th></th></tr></thead><tbody>
-            {visibleWorkshops.map(w => <tr key={w.id}><td><strong>{w.code}</strong></td><td>{w.name}</td><td><span className={w.active ? 'pill live' : 'pill'}>{w.active ? 'Actif' : 'Inactif'}</span></td><td>{equipments.filter(e => e.workshop_id === w.id).length}</td><td><button className="link" onClick={() => editWork(w)}>Modifier</button></td></tr>)}
+          <section className="panel"><div className="panel-head"><h2>Référentiel ateliers</h2><IconButton action="add" label="Ajouter un atelier" disabled={saving} onClick={resetWork} /></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Désignation</th><th>Statut</th><th>Équipements</th><th></th></tr></thead><tbody>
+            {visibleWorkshops.map(w => <tr key={w.id}><td><strong>{w.code}</strong></td><td>{w.name}</td><td><span className={w.active ? 'pill live' : 'pill'}>{w.active ? 'Actif' : 'Inactif'}</span></td><td>{equipments.filter(e => e.workshop_id === w.id).length}</td><td><div className="row-actions">
+              <IconButton action="edit" label={`Modifier l’atelier ${w.name}`} onClick={() => editWork(w)} disabled={saving} />
+              <IconButton action={w.active ? 'disable' : 'enable'} label={`${w.active ? 'Désactiver' : 'Activer'} l’atelier ${w.name}`}
+                onClick={() => void changeActive('workshops', w.id, w.active, w.name)} disabled={saving} />
+            </div></td></tr>)}
             {!visibleWorkshops.length && <tr><td colSpan={5} className="empty">Aucun atelier enregistré.</td></tr>}
           </tbody></table></div></section>
           <form className="panel editor" onSubmit={saveWork}><div className="panel-head"><h2>{workId ? 'Modifier l’atelier' : 'Nouvel atelier'}</h2></div>
@@ -223,8 +248,12 @@ function App() {
           </form>
         </div>}
         {section === 'equipment' && <div className="two-columns">
-          <section className="panel"><div className="panel-head"><h2>Référentiel équipements</h2></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Équipement</th><th>Atelier</th><th>Statut</th><th></th></tr></thead><tbody>
-            {visibleEquipment.map(e => <tr key={e.id}><td><strong>{e.code}</strong></td><td>{e.name}<small>{e.category}</small></td><td>{workshopName(e.workshop_id)}</td><td><span className={e.active ? 'pill live' : 'pill'}>{e.active ? 'Actif' : 'Inactif'}</span></td><td><button className="link" onClick={() => editEq(e)}>Modifier</button></td></tr>)}
+          <section className="panel"><div className="panel-head"><h2>Référentiel équipements</h2><IconButton action="add" label="Ajouter un équipement" disabled={saving} onClick={resetEq} /></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Équipement</th><th>Atelier</th><th>Statut</th><th></th></tr></thead><tbody>
+            {visibleEquipment.map(e => <tr key={e.id}><td><strong>{e.code}</strong></td><td>{e.name}<small>{e.category}</small></td><td>{workshopName(e.workshop_id)}</td><td><span className={e.active ? 'pill live' : 'pill'}>{e.active ? 'Actif' : 'Inactif'}</span></td><td><div className="row-actions">
+              <IconButton action="edit" label={`Modifier l’équipement ${e.name}`} onClick={() => editEq(e)} disabled={saving} />
+              <IconButton action={e.active ? 'disable' : 'enable'} label={`${e.active ? 'Désactiver' : 'Activer'} l’équipement ${e.name}`}
+                onClick={() => void changeActive('equipment', e.id, e.active, e.name)} disabled={saving} />
+            </div></td></tr>)}
             {!visibleEquipment.length && <tr><td colSpan={5} className="empty">Aucun équipement enregistré.</td></tr>}
           </tbody></table></div></section>
           <form className="panel editor" onSubmit={saveEq}><div className="panel-head"><h2>{eqId ? 'Modifier l’équipement' : 'Nouvel équipement'}</h2></div>
