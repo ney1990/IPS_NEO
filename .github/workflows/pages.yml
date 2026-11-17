@@ -1,0 +1,71 @@
+name: Publish IPS-NEO (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# No deployment for the private repository on GitHub Free.
+# Publish only when visibility is Public and GitHub Pages is enabled.
+permissions:
+  contents: read
+
+concurrency:
+  group: ips-neo-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Source
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Check public Supabase client configuration
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Configure repository Actions variables VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY before publishing."
+            exit 1
+          fi
+
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build for GitHub Pages
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build -- --mode pages
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload built application
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: ${{ github.event.repository.private == false }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Publish on GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
