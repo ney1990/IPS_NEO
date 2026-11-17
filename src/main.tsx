@@ -336,7 +336,7 @@ function App() {
             {!visibleEquipment.length && <tr><td colSpan={6} className="empty">Aucun équipement enregistré.</td></tr>}
           </tbody></table></div></section>
           <form className="panel editor" onSubmit={saveEq}><div className="panel-head"><h2>{eqId ? 'Modifier l’équipement' : 'Nouvel équipement'}</h2></div>
-            <label>Atelier *<select required value={eq.workshop_id} onChange={e => setEq({ ...eq, workshop_id: e.target.value })}><option value="">Choisir un atelier</option>{workshops.filter(w => w.active || w.id === eq.workshop_id).map(w => <option key={w.id} value={w.id}>{w.code} — {w.name}</option>)}</select></label>
+            <label>Atelier *<select required value={eq.workshop_id} onChange={e => setEq({ ...eq, workshop_id: e.target.value })}><option value="">Choisir un atelier</option>{workshops.filter(w => w.active || w.id === eq.workshop_id).map(w => <option key={w.id} value={w.id}>{w.code} — {w.name} · {siteName(w.site_id)}</option>)}</select></label>
             <label>Code *<input required maxLength={40} value={eq.code} onChange={e => setEq({ ...eq, code: e.target.value.toUpperCase() })} /></label>
             <label>Désignation *<input required maxLength={160} value={eq.name} onChange={e => setEq({ ...eq, name: e.target.value })} /></label>
             <label>Catégorie<input value={eq.category} onChange={e => setEq({ ...eq, category: e.target.value })} /></label>
