@@ -18,6 +18,11 @@ jobs:
   build:
     if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
+    # Publishable key is designed for client-side apps, not a database secret.
+    # Repo Actions variables take priority if rotated later.
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://nfkpmgdauqpdwdlmnmak.supabase.co' }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_LpEMACJa6ez0k7URkW79HQ_osLS9MWu' }}
     steps:
       - name: Source
         uses: actions/checkout@v4
@@ -28,13 +33,10 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Check public Supabase client configuration
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      - name: Check Supabase client configuration
         run: |
           if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "::error::Configure repository Actions variables VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY before publishing."
+            echo "::error::Client Supabase non configuré."
             exit 1
           fi
 
@@ -42,9 +44,6 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build for GitHub Pages
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build -- --mode pages
 
       - name: Configure Pages
