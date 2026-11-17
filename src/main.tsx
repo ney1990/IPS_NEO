@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './supabase';
 import './styles.css';
+import './theme-lavande.css';
 
 type Workshop = { id: string; code: string; name: string; description: string; active: boolean; created_at: string; updated_at: string };
 type Equipment = { id: string; workshop_id: string; code: string; name: string; category: string; manufacturer: string; model: string; description: string; active: boolean; created_at: string };
@@ -25,12 +26,30 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
   }
 }
 
+function NavIcon({ name }: { name: Section }) {
+  return <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {name === 'workshops' && <><rect x="3" y="10" width="18" height="11" rx="1.5" /><path d="M3 13 9 9l5 3 7-4M7 21v-5h4v5m4 0v-5h3v5M6 6h3M7 3v6" /></>}
+    {name === 'equipment' && <><rect x="3" y="8" width="18" height="12" rx="2" /><circle cx="9" cy="14" r="2.2" /><path d="M14 12h4m-4 4h4M7 8V5h10v3M7 20v2m10-2v2" /></>}
+    {name === 'history' && <><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></>}
+  </svg>;
+}
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState<Section>('workshops');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('ips-neo-sidebar-collapsed') === 'true'; }
+    catch { return false; }
+  });
+  function toggleSidebar() {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    try { window.localStorage.setItem('ips-neo-sidebar-collapsed', String(next)); }
+    catch { /* Keep the toggle usable if storage is restricted. */ }
+  }
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [email, setEmail] = useState('');
@@ -156,15 +175,32 @@ function App() {
   </form></main>;
 
   return <div className="shell">
-    <aside className="sidebar">
-      <div className="logo"><div className="brand-mark">N</div><div><strong>IPS-NEO</strong><small>Référentiel industriel</small></div></div>
-      <div className="group-title">STRUCTURE</div>
-      <nav aria-label="Navigation principale">
-        <button className={section === 'workshops' ? 'nav active' : 'nav'} onClick={() => { setSection('workshops'); setSearch(''); }}>Ateliers <span>{workshops.length}</span></button>
-        <button className={section === 'equipment' ? 'nav active' : 'nav'} onClick={() => { setSection('equipment'); setSearch(''); }}>Équipements <span>{equipments.length}</span></button>
-        <button className={section === 'history' ? 'nav active' : 'nav'} onClick={() => { setSection('history'); setSearch(''); }}>Historique</button>
+    <aside className={sidebarCollapsed ? 'sidebar sidebar--collapsed' : 'sidebar'} aria-label="Menu latéral">
+      <div className="logo">
+        <div className="brand-mark">N</div>
+        <div className="logo-copy"><strong>IPS-NEO</strong><small>Référentiel industriel</small></div>
+        <button type="button" className="sidebar-toggle" onClick={toggleSidebar}
+          title={sidebarCollapsed ? 'Déployer le menu' : 'Réduire le menu'}
+          aria-label={sidebarCollapsed ? 'Déployer le menu latéral' : 'Réduire le menu latéral'}
+          aria-expanded={!sidebarCollapsed} aria-controls="ips-neo-main-nav">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={sidebarCollapsed ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'} />
+          </svg>
+        </button>
+      </div>
+      <div className="group-title">RÉFÉRENTIELS</div>
+      <nav id="ips-neo-main-nav" aria-label="Navigation principale">
+        <button type="button" title="Ateliers" aria-current={section === 'workshops' ? 'page' : undefined} className={section === 'workshops' ? 'nav active' : 'nav'} onClick={() => { setSection('workshops'); setSearch(''); }}>
+          <NavIcon name="workshops" /><span className="nav-label">Ateliers</span><span className="nav-count">{workshops.length}</span>
+        </button>
+        <button type="button" title="Équipements" aria-current={section === 'equipment' ? 'page' : undefined} className={section === 'equipment' ? 'nav active' : 'nav'} onClick={() => { setSection('equipment'); setSearch(''); }}>
+          <NavIcon name="equipment" /><span className="nav-label">Équipements</span><span className="nav-count">{equipments.length}</span>
+        </button>
+        <button type="button" title="Historique" aria-current={section === 'history' ? 'page' : undefined} className={section === 'history' ? 'nav active' : 'nav'} onClick={() => { setSection('history'); setSearch(''); }}>
+          <NavIcon name="history" /><span className="nav-label">Historique</span>
+        </button>
       </nav>
-      <div className="sidebar-foot"><span>V0.1 · Socle validable</span><small>Pas d'ordonnancement dans cette version</small></div>
+      <div className="sidebar-foot"><span>IPS-NEO · V0.1</span><small>Référentiels industriels</small></div>
     </aside>
     <main className="main">
       <header className="topbar"><span>IPS Industrie / Référentiel</span><div><span className="user-email">{session.user.email}</span><button className="ghost" onClick={logout}>Déconnexion</button></div></header>
