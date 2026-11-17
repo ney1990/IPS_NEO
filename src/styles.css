@@ -22,7 +22,7 @@
   --ips-border: #d9e2ec;
   --ips-heading: #1b2b3a;
   --ips-body: #425466;
-  --ips-muted: #6b7c93;
+  --ips-muted: #607188; /* slightly darker than initial palette for readable small text */
   --ips-primary: #1f8a70;
   --ips-primary-hover: #176b57;
   --ips-primary-light: #e8f7f1;
@@ -102,9 +102,9 @@ p { line-height: 1.55; }
 .primary, .ghost, .link { min-height: 38px; }
 .primary {
   padding: 10px 18px; border: 1px solid var(--ips-primary); border-radius: 8px;
-  color: #fff; background: var(--ips-primary); font-size: 13px; font-weight: 700;
+  color: #fff; background: var(--ips-primary-hover); font-size: 13px; font-weight: 700;
 }
-.primary:hover:not(:disabled) { background: var(--ips-primary-hover); border-color: var(--ips-primary-hover); box-shadow: 0 3px 10px rgba(31, 138, 112, .17); }
+.primary:hover:not(:disabled) { background: #125a49; border-color: #125a49; box-shadow: 0 3px 10px rgba(31, 138, 112, .17); }
 .ghost {
   padding: 10px 15px; border: 1px solid #c8d4e3; border-radius: 8px;
   color: var(--ips-secondary); background: #fff; font-size: 13px; font-weight: 700;
@@ -123,7 +123,7 @@ input:not([type="checkbox"]):focus, select:focus, textarea:focus {
   border-color: var(--ips-secondary); outline: 0;
   box-shadow: 0 0 0 3px rgba(47, 107, 154, .12);
 }
-input::placeholder, textarea::placeholder { color: #91a0af; opacity: 1; }
+input::placeholder, textarea::placeholder { color: #607188; opacity: 1; }
 textarea { resize: vertical; min-height: 76px; }
 input[type="checkbox"] { accent-color: var(--ips-primary); }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 17px; color: var(--ips-muted); font-size: 13px; }
