@@ -11,6 +11,7 @@
 - **Vert pétrole** pour l'action principale, les états actifs et les validations.
 - **Bleu technique** pour la recherche, les informations et les actions secondaires.
 - Ne pas utiliser de couleur pour une information non justifiée par un état métier.
+- La couleur d'accent `#1F8A70` reste l'identité du thème ; pour les boutons à texte blanc, utiliser le vert plus sombre `#176B57` pour préserver le contraste.
 
 ## 2. Palette / tokens CSS
 
@@ -26,7 +27,7 @@
 | Bordure | `--ips-border` | `#D9E2EC` |
 | Titres | `--ips-heading` | `#1B2B3A` |
 | Texte | `--ips-body` | `#425466` |
-| Texte secondaire | `--ips-muted` | `#6B7C93` |
+| Texte secondaire | `--ips-muted` | `#607188` (contraste renforcé) |
 | Accent principal | `--ips-primary` | `#1F8A70` |
 | Hover principal | `--ips-primary-hover` | `#176B57` |
 | Accent secondaire | `--ips-secondary` | `#2F6B9A` |
