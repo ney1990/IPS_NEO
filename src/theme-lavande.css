@@ -82,8 +82,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: #fff;
 }
 .nav-icon { display: block; flex-shrink: 0; width: 18px; height: 18px; color: #faf9ff; }
-.nav-label { min-width: 0; flex: 1; text-align: left; white-space: nowrap; }
-.nav-count {
+.nav .nav-label {
+  min-width: 0; flex: 1; text-align: left; white-space: nowrap;
+  background: transparent; padding: 0; border-radius: 0; color: inherit; font-size: 12px;
+}
+.nav .nav-count {
   margin-left: auto; flex-shrink: 0; border-radius: 99px;
   padding: 2px 6px; font-size: 10px; font-variant-numeric: tabular-nums;
   color: #fff; background: rgba(255, 255, 255, .15);
