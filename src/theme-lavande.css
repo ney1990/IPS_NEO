@@ -241,3 +241,33 @@ footer { margin-top: 26px; }
 @media (prefers-reduced-motion: reduce) {
   .sidebar { transition-duration: 0s; }
 }
+
+
+/* Règle IPS-NEO : actions compactes par icône + couleur + nom accessible. */
+.row-actions { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.icon-action {
+  display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center;
+  width: 33px; height: 33px; min-width: 33px; min-height: 33px;
+  margin: 0; padding: 0; border: 1px solid transparent;
+  border-radius: 9px; background: transparent; cursor: pointer;
+  transition: background-color .15s, border-color .15s, transform .15s;
+}
+.icon-action svg { display: block; width: 17px; height: 17px; pointer-events: none; }
+.icon-action--add { color: #14724f; background: #e4f6ed; border-color: #c9ead8; }
+.icon-action--add:hover:not(:disabled) { background: #cceddd; border-color: #a6d9bd; }
+.icon-action--edit { color: #5842a8; background: #eeeafb; border-color: #e4ddf9; }
+.icon-action--edit:hover:not(:disabled) { background: #ded5f6; border-color: #cfc0ee; }
+.icon-action--enable { color: #14724f; background: #e4f6ed; border-color: #c9ead8; }
+.icon-action--enable:hover:not(:disabled) { background: #cceddd; border-color: #a6d9bd; }
+.icon-action--disable { color: #93600e; background: #fff4de; border-color: #f7e4b8; }
+.icon-action--disable:hover:not(:disabled) { background: #ffe9b8; border-color: #eccb84; }
+.icon-action--delete { color: #b32f45; background: #fff0f2; border-color: #f2ced4; }
+.icon-action--delete:hover:not(:disabled) { background: #ffdde3; border-color: #e8adb8; }
+.icon-action:disabled { opacity: .45; cursor: not-allowed; }
+.icon-action:focus-visible { outline: 2px solid #6454b2; outline-offset: 2px; }
+.panel-head .icon-action { margin-left: auto; }
+td .row-actions { vertical-align: middle; }
+@media (max-width: 720px) {
+  .icon-action { width: 37px; height: 37px; min-width: 37px; min-height: 37px; }
+  .row-actions { gap: 5px; }
+}
