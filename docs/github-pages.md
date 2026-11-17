@@ -11,11 +11,9 @@
 ## Mise en ligne
 
 1. Sur GitHub, dépôt **ney1990/IPS_NEO → Settings → General → Danger Zone → Change repository visibility → Public**.
-2. Dans **Settings → Secrets and variables → Actions → Variables**, ajouter :
-   - `VITE_SUPABASE_URL` = URL publique du projet Supabase `https://nfkpmgdauqpdwdlmnmak.supabase.co`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY` = **clé publishable** de ce projet (jamais la clé secrète).
-3. Dans **Settings → Pages → Build and deployment → Source**, choisir **GitHub Actions**.
-4. Exécuter **Actions → Publish IPS-NEO (GitHub Pages) → Run workflow** sur `main`. Un commit futur sur `main` relancera automatiquement la publication.
+2. Le workflow contient l'URL Supabase et **uniquement la clé publishable** (publique par conception) pour le premier déploiement. Aucun secret administratif n'y figure. En cas de rotation, les variables GitHub Actions `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` prennent le dessus sur les valeurs par défaut.
+3. Dans **Settings → Pages → Build and deployment → Source**, choisir **GitHub Actions**. Cette activation est **obligatoire** : l'action `configure-pages@v5` ne peut pas initialiser Pages avec le simple `GITHUB_TOKEN` du dépôt.
+4. Exécuter **Actions → Publish IPS-NEO (GitHub Pages) → Re-run failed jobs** (ou `Run workflow` sur `main`). Un commit futur sur `main` relancera automatiquement la publication.
 5. Vérifier l'adresse `https://ney1990.github.io/IPS_NEO/` **après** le succès du job de déploiement, puis tester connexion, sites, ateliers et équipements.
 6. Dans Supabase, vérifier **Authentication → URL Configuration**, notamment Site URL/redirects si des flux de confirmation ou réinitialisation par e-mail sont utilisés.
 
