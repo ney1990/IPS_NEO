@@ -6,13 +6,16 @@ import './styles.css';
 import './theme-lavande.css';
 import { IconButton } from './ui/IconButton';
 
-type Workshop = { id: string; code: string; name: string; description: string; active: boolean; created_at: string; updated_at: string };
+type Site = { id: string; code: string; name: string; description: string; active: boolean; created_at: string; updated_at: string };
+type Workshop = { id: string; code: string; name: string; description: string; active: boolean; site_id: string | null; sector: 'FAB' | 'CONDT_PR'; created_at: string; updated_at: string };
 type Equipment = { id: string; workshop_id: string; code: string; name: string; category: string; manufacturer: string; model: string; description: string; active: boolean; created_at: string };
 type Audit = { id: number; entity_type: string; action: string; actor_id: string | null; created_at: string; before_row: Record<string, unknown> | null; after_row: Record<string, unknown> | null };
-type Section = 'workshops' | 'equipment' | 'history';
-type WorkForm = Pick<Workshop, 'code' | 'name' | 'description' | 'active'>;
+type Section = 'sites' | 'workshops' | 'equipment' | 'history';
+type SiteForm = Pick<Site, 'code' | 'name' | 'description' | 'active'>;
+type WorkForm = Pick<Workshop, 'code' | 'name' | 'description' | 'active' | 'site_id' | 'sector'>;
 type EqForm = Pick<Equipment, 'code' | 'name' | 'category' | 'manufacturer' | 'model' | 'description' | 'active' | 'workshop_id'>;
-const newWork = (): WorkForm => ({ code: '', name: '', description: '', active: true });
+const newSite = (): SiteForm => ({ code: '', name: '', description: '', active: true });
+const newWork = (): WorkForm => ({ code: '', name: '', description: '', active: true, site_id: null, sector: 'FAB' });
 const newEq = (): EqForm => ({ code: '', name: '', category: '', manufacturer: '', model: '', description: '', active: true, workshop_id: '' });
 function displayError(e: unknown) { return e instanceof Error ? e.message : String(e || 'Erreur inconnue'); }
 function dateFr(v: string) { return new Date(v).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }); }
@@ -29,6 +32,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
 
 function NavIcon({ name }: { name: Section }) {
   return <svg className="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {name === 'sites' && <><path d="M3 21V7l9-4 9 4v14H3Z" /><path d="M9 21v-7h6v7M7 9h1M16 9h1" /></>}
     {name === 'workshops' && <><rect x="3" y="10" width="18" height="11" rx="1.5" /><path d="M3 13 9 9l5 3 7-4M7 21v-5h4v5m4 0v-5h3v5M6 6h3M7 3v6" /></>}
     {name === 'equipment' && <><rect x="3" y="8" width="18" height="12" rx="2" /><circle cx="9" cy="14" r="2.2" /><path d="M14 12h4m-4 4h4M7 8V5h10v3M7 20v2m10-2v2" /></>}
     {name === 'history' && <><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></>}
@@ -56,9 +60,13 @@ function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [search, setSearch] = useState('');
+  const [sites, setSites] = useState<Site[]>([]);
+  const [siteFilter, setSiteFilter] = useState('all');
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const [siteForm, setSiteForm] = useState<SiteForm>(newSite);
   const [workId, setWorkId] = useState<string | null>(null);
   const [eqId, setEqId] = useState<string | null>(null);
   const [work, setWork] = useState<WorkForm>(newWork);
@@ -86,14 +94,17 @@ function App() {
     if (!client) return;
     setLoading(true); setError('');
     try {
-      const [w, e, a] = await Promise.all([
-        client.from('workshops').select('id,code,name,description,active,created_at,updated_at').order('code'),
+      const [si, w, e, a] = await Promise.all([
+        client.from('sites').select('id,code,name,description,active,created_at,updated_at').order('code'),
+        client.from('workshops').select('id,code,name,description,active,site_id,sector,created_at,updated_at').order('code'),
         client.from('equipment').select('id,workshop_id,code,name,category,manufacturer,model,description,active,created_at').order('code'),
         client.from('audit_log').select('id,entity_type,action,actor_id,created_at,before_row,after_row').order('created_at', { ascending: false }).limit(100),
       ]);
+      if (si.error) throw si.error;
       if (w.error) throw w.error;
       if (e.error) throw e.error;
       if (a.error) throw a.error;
+      setSites((si.data ?? []) as Site[]);
       setWorkshops((w.data ?? []) as Workshop[]);
       setEquipments((e.data ?? []) as Equipment[]);
       setAudits((a.data ?? []) as Audit[]);
@@ -102,7 +113,7 @@ function App() {
 
   useEffect(() => {
     if (session) void refresh();
-    else { setWorkshops([]); setEquipments([]); setAudits([]); }
+    else { setSites([]); setWorkshops([]); setEquipments([]); setAudits([]); }
   }, [session?.user.id]);
 
   async function login(event: FormEvent<HTMLFormElement>) {
@@ -121,10 +132,28 @@ function App() {
     if (error) setError(error.message);
   }
 
+  function resetSite() { setSiteId(null); setSiteForm(newSite()); }
+  function editSite(si: Site) { setSiteId(si.id); setSiteForm({ code: si.code, name: si.name, description: si.description, active: si.active }); setSection('sites'); }
   function resetWork() { setWorkId(null); setWork(newWork()); }
   function resetEq() { setEqId(null); setEq(newEq()); }
-  function editWork(w: Workshop) { setWorkId(w.id); setWork({ code: w.code, name: w.name, description: w.description, active: w.active }); setSection('workshops'); }
+  function editWork(w: Workshop) { setWorkId(w.id); setWork({ code: w.code, name: w.name, description: w.description, active: w.active, site_id: w.site_id, sector: w.sector }); setSection('workshops'); }
   function editEq(e: Equipment) { setEqId(e.id); setEq({ workshop_id: e.workshop_id, code: e.code, name: e.name, category: e.category, manufacturer: e.manufacturer, model: e.model, description: e.description, active: e.active }); setSection('equipment'); }
+
+  async function saveSite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!supabase) return;
+    setSaving(true); setError(''); setNotice('');
+    try {
+      const payload = { ...siteForm, code: siteForm.code.trim().toUpperCase(),
+        name: siteForm.name.trim(), description: siteForm.description.trim() };
+      if (!payload.code || !payload.name) throw Error('Code et désignation du site obligatoires.');
+      const q = siteId
+        ? supabase.from('sites').update(payload).eq('id', siteId).select('id').single()
+        : supabase.from('sites').insert(payload).select('id').single();
+      const { error } = await q;
+      if (error) throw error;
+      resetSite(); await refresh(); setNotice('Site enregistré.');
+    } catch (e) { setError(displayError(e)); } finally { setSaving(false); }
+  }
 
   async function saveWork(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!supabase) return;
@@ -158,8 +187,11 @@ function App() {
     } catch (e) { setError(displayError(e)); } finally { setSaving(false); }
   }
 
-  async function changeActive(entity: 'workshops' | 'equipment', id: string, active: boolean, name: string) {
+  async function changeActive(entity: 'sites' | 'workshops' | 'equipment', id: string, active: boolean, name: string) {
     if (!supabase || saving) return;
+    if (entity === 'sites' && active && workshops.some(w => w.site_id === id && w.active)) {
+      setNotice(''); setError('Désactive les ateliers actifs avant de désactiver ce site.'); return;
+    }
     if (entity === 'workshops' && active && equipments.some(e => e.workshop_id === id && e.active)) {
       setNotice('');
       setError('Désactive les équipements de cet atelier avant de désactiver l’atelier.');
@@ -171,6 +203,7 @@ function App() {
     try {
       const { error } = await supabase.from(entity).update({ active: newActive }).eq('id', id).select('id').single();
       if (error) throw error;
+      if (entity === 'sites' && siteId === id) setSiteForm(prev => ({ ...prev, active: newActive }));
       if (entity === 'workshops' && workId === id) setWork(prev => ({ ...prev, active: newActive }));
       if (entity === 'equipment' && eqId === id) setEq(prev => ({ ...prev, active: newActive }));
       await refresh();
@@ -179,9 +212,15 @@ function App() {
   }
 
   const query = search.trim().toLocaleLowerCase('fr-FR');
-  const visibleWorkshops = workshops.filter(w => !query || (w.code + ' ' + w.name + ' ' + w.description).toLocaleLowerCase('fr-FR').includes(query));
-  const visibleEquipment = equipments.filter(e => !query || (e.code + ' ' + e.name + ' ' + e.category + ' ' + e.manufacturer + ' ' + e.model).toLocaleLowerCase('fr-FR').includes(query));
+  const visibleSites = sites.filter(si => !query || (si.code + ' ' + si.name + ' ' + si.description).toLocaleLowerCase('fr-FR').includes(query));
+  const visibleWorkshops = workshops.filter(w => (siteFilter === 'all' || (siteFilter === 'unassigned' ? w.site_id === null : w.site_id === siteFilter))
+    && (!query || (w.code + ' ' + w.name + ' ' + w.description + ' ' + w.sector).toLocaleLowerCase('fr-FR').includes(query)));
+  const visibleEquipment = equipments.filter(e => (siteFilter === 'all'
+    || (siteFilter === 'unassigned' ? workshops.find(w => w.id === e.workshop_id)?.site_id === null
+    : workshops.find(w => w.id === e.workshop_id)?.site_id === siteFilter))
+    && (!query || (e.code + ' ' + e.name + ' ' + e.category + ' ' + e.manufacturer + ' ' + e.model).toLocaleLowerCase('fr-FR').includes(query)));
   const workshopName = (id: string) => workshops.find(w => w.id === id)?.name ?? 'Atelier non disponible';
+  const siteName = (id: string | null) => id ? sites.find(si => si.id === id)?.name ?? 'Site non disponible' : 'Non affecté';
 
   if (!configured) return <main className="login-shell"><section className="login-card"><div className="brand-mark">N</div><h1>IPS-NEO</h1><p>L'application n'est pas encore connectée à Supabase.</p><p>Configurer <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> dans Netlify ou dans <code>.env.local</code>.</p></section></main>;
   if (booting) return <main className="login-shell"><p>Vérification de la session…</p></main>;
@@ -211,6 +250,9 @@ function App() {
       </div>
       <div className="group-title">RÉFÉRENTIELS</div>
       <nav id="ips-neo-main-nav" aria-label="Navigation principale">
+        <button type="button" title="Sites de production" aria-current={section === 'sites' ? 'page' : undefined} className={section === 'sites' ? 'nav active' : 'nav'} onClick={() => { setSection('sites'); setSearch(''); }}>
+          <NavIcon name="sites" /><span className="nav-label">Sites</span><span className="nav-count">{sites.length}</span>
+        </button>
         <button type="button" title="Ateliers" aria-current={section === 'workshops' ? 'page' : undefined} className={section === 'workshops' ? 'nav active' : 'nav'} onClick={() => { setSection('workshops'); setSearch(''); }}>
           <NavIcon name="workshops" /><span className="nav-label">Ateliers</span><span className="nav-count">{workshops.length}</span>
         </button>
@@ -226,20 +268,57 @@ function App() {
     <main className="main">
       <header className="topbar"><span>IPS Industrie / Référentiel</span><div><span className="user-email">{session.user.email}</span><button className="ghost" onClick={logout}>Déconnexion</button></div></header>
       <div className="content">
-        <div className="heading"><div><p className="eyebrow">CONFIGURATION INDUSTRIELLE</p><h1>{section === 'workshops' ? 'Ateliers' : section === 'equipment' ? 'Équipements' : 'Traçabilité'}</h1><p>Une seule base Supabase. Données réelles uniquement, sans doublons fictifs.</p></div><button className="ghost" disabled={loading} onClick={() => void refresh()}>{loading ? 'Chargement…' : 'Actualiser'}</button></div>
+        <div className="heading"><div><p className="eyebrow">CONFIGURATION INDUSTRIELLE</p><h1>{section === 'sites' ? 'Sites de production' : section === 'workshops' ? 'Ateliers' : section === 'equipment' ? 'Équipements' : 'Traçabilité'}</h1><p>Une seule base Supabase. Données réelles uniquement, sans doublons fictifs.</p></div><button className="ghost" disabled={loading} onClick={() => void refresh()}>{loading ? 'Chargement…' : 'Actualiser'}</button></div>
         {error && <div className="alert" role="alert">{error}</div>}
         {notice && <div className="ok" role="status">{notice}</div>}
-        {section !== 'history' && <div className="toolbar"><input aria-label="Rechercher" placeholder="Rechercher par code, désignation…" value={search} onChange={e => setSearch(e.target.value)} /><span>{section === 'workshops' ? visibleWorkshops.length : visibleEquipment.length} élément(s)</span></div>}
+        {section !== 'history' && <div className="toolbar toolbar--sites"><input aria-label="Rechercher" placeholder="Rechercher par code, désignation…" value={search} onChange={e => setSearch(e.target.value)} />
+          {section !== 'sites' && <select className="site-filter" aria-label="Filtrer par site de production" value={siteFilter} onChange={e => setSiteFilter(e.target.value)}>
+            <option value="all">Tous les sites</option>
+            <option value="unassigned">Non affectés</option>
+            {sites.map(si => <option key={si.id} value={si.id}>{si.code} — {si.name}</option>)}
+          </select>}
+          <span>{section === 'sites' ? visibleSites.length : section === 'workshops' ? visibleWorkshops.length : visibleEquipment.length} élément(s)</span>
+        </div>}
+        {section === 'sites' && <div className="two-columns">
+          <section className="panel"><div className="panel-head"><h2>Sites de production</h2><IconButton action="add" label="Ajouter un site" disabled={saving} onClick={resetSite} /></div>
+            <div className="table-scroll"><table><thead><tr><th>Code</th><th>Nom</th><th>Ateliers</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
+              {visibleSites.map(si => <tr key={si.id}><td><strong>{si.code}</strong></td><td>{si.name}</td>
+                <td>{workshops.filter(w => w.site_id === si.id).length}</td>
+                <td><span className={si.active ? 'pill live' : 'pill'}>{si.active ? 'Actif' : 'Inactif'}</span></td>
+                <td><div className="row-actions">
+                  <IconButton action="edit" label={`Modifier le site ${si.name}`} disabled={saving} onClick={() => editSite(si)} />
+                  <IconButton action={si.active ? 'disable' : 'enable'} label={`${si.active ? 'Désactiver' : 'Activer'} le site ${si.name}`} disabled={saving}
+                    onClick={() => void changeActive('sites', si.id, si.active, si.name)} />
+                </div></td>
+              </tr>)}
+              {!visibleSites.length && <tr><td colSpan={5} className="empty">Aucun site enregistré. Renseigne uniquement les sites réels.</td></tr>}
+            </tbody></table></div>
+          </section>
+          <form className="panel editor" onSubmit={saveSite}><div className="panel-head"><h2>{siteId ? 'Modifier le site' : 'Nouveau site'}</h2></div>
+            <label>Code site *<input required maxLength={40} value={siteForm.code} onChange={e => setSiteForm({ ...siteForm, code: e.target.value.toUpperCase() })} /></label>
+            <label>Nom du site *<input required maxLength={160} value={siteForm.name} onChange={e => setSiteForm({ ...siteForm, name: e.target.value })} /></label>
+            <label>Description<textarea value={siteForm.description} onChange={e => setSiteForm({ ...siteForm, description: e.target.value })} rows={3} /></label>
+            <label className="inline-check"><input type="checkbox" checked={siteForm.active} onChange={e => setSiteForm({ ...siteForm, active: e.target.checked })}/> Site actif</label>
+            <div className="actions"><button type="button" className="ghost" onClick={resetSite}>Annuler</button><button className="primary" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button></div>
+          </form>
+        </div>}
         {section === 'workshops' && <div className="two-columns">
-          <section className="panel"><div className="panel-head"><h2>Référentiel ateliers</h2><IconButton action="add" label="Ajouter un atelier" disabled={saving} onClick={resetWork} /></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Désignation</th><th>Statut</th><th>Équipements</th><th></th></tr></thead><tbody>
-            {visibleWorkshops.map(w => <tr key={w.id}><td><strong>{w.code}</strong></td><td>{w.name}</td><td><span className={w.active ? 'pill live' : 'pill'}>{w.active ? 'Actif' : 'Inactif'}</span></td><td>{equipments.filter(e => e.workshop_id === w.id).length}</td><td><div className="row-actions">
+          <section className="panel"><div className="panel-head"><h2>Référentiel ateliers</h2><IconButton action="add" label="Ajouter un atelier" disabled={saving} onClick={resetWork} /></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Désignation</th><th>Site</th><th>Statut</th><th>Équipements</th><th></th></tr></thead><tbody>
+            {visibleWorkshops.map(w => <tr key={w.id}><td><strong>{w.code}</strong></td><td>{w.name}</td><td>{siteName(w.site_id)}</td><td><span className={w.active ? 'pill live' : 'pill'}>{w.active ? 'Actif' : 'Inactif'}</span></td><td>{equipments.filter(e => e.workshop_id === w.id).length}</td><td><div className="row-actions">
               <IconButton action="edit" label={`Modifier l’atelier ${w.name}`} onClick={() => editWork(w)} disabled={saving} />
               <IconButton action={w.active ? 'disable' : 'enable'} label={`${w.active ? 'Désactiver' : 'Activer'} l’atelier ${w.name}`}
                 onClick={() => void changeActive('workshops', w.id, w.active, w.name)} disabled={saving} />
             </div></td></tr>)}
-            {!visibleWorkshops.length && <tr><td colSpan={5} className="empty">Aucun atelier enregistré.</td></tr>}
+            {!visibleWorkshops.length && <tr><td colSpan={6} className="empty">Aucun atelier enregistré.</td></tr>}
           </tbody></table></div></section>
           <form className="panel editor" onSubmit={saveWork}><div className="panel-head"><h2>{workId ? 'Modifier l’atelier' : 'Nouvel atelier'}</h2></div>
+            <label>Site de production<select value={work.site_id ?? ''} onChange={e => setWork({ ...work, site_id: e.target.value || null })}>
+              <option value="">Non affecté (à compléter)</option>
+              {sites.filter(si => si.active || si.id === work.site_id).map(si => <option key={si.id} value={si.id}>{si.code} — {si.name}</option>)}
+            </select></label>
+            <label>Secteur<select value={work.sector} onChange={e => setWork({ ...work, sector: e.target.value as Workshop['sector'] })}>
+              <option value="FAB">Fabrication</option><option value="CONDT_PR">Conditionnement primaire</option>
+            </select></label>
             <label>Code *<input required maxLength={40} value={work.code} onChange={e => setWork({ ...work, code: e.target.value.toUpperCase() })} placeholder="Code existant en interne" /></label>
             <label>Désignation *<input required maxLength={160} value={work.name} onChange={e => setWork({ ...work, name: e.target.value })} /></label>
             <label>Description<textarea rows={3} value={work.description} onChange={e => setWork({ ...work, description: e.target.value })} /></label>
@@ -248,13 +327,13 @@ function App() {
           </form>
         </div>}
         {section === 'equipment' && <div className="two-columns">
-          <section className="panel"><div className="panel-head"><h2>Référentiel équipements</h2><IconButton action="add" label="Ajouter un équipement" disabled={saving} onClick={resetEq} /></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Équipement</th><th>Atelier</th><th>Statut</th><th></th></tr></thead><tbody>
-            {visibleEquipment.map(e => <tr key={e.id}><td><strong>{e.code}</strong></td><td>{e.name}<small>{e.category}</small></td><td>{workshopName(e.workshop_id)}</td><td><span className={e.active ? 'pill live' : 'pill'}>{e.active ? 'Actif' : 'Inactif'}</span></td><td><div className="row-actions">
+          <section className="panel"><div className="panel-head"><h2>Référentiel équipements</h2><IconButton action="add" label="Ajouter un équipement" disabled={saving} onClick={resetEq} /></div><div className="table-scroll"><table><thead><tr><th>Code</th><th>Équipement</th><th>Atelier</th><th>Site</th><th>Statut</th><th></th></tr></thead><tbody>
+            {visibleEquipment.map(e => <tr key={e.id}><td><strong>{e.code}</strong></td><td>{e.name}<small>{e.category}</small></td><td>{workshopName(e.workshop_id)}</td><td>{siteName(workshops.find(w => w.id === e.workshop_id)?.site_id ?? null)}</td><td><span className={e.active ? 'pill live' : 'pill'}>{e.active ? 'Actif' : 'Inactif'}</span></td><td><div className="row-actions">
               <IconButton action="edit" label={`Modifier l’équipement ${e.name}`} onClick={() => editEq(e)} disabled={saving} />
               <IconButton action={e.active ? 'disable' : 'enable'} label={`${e.active ? 'Désactiver' : 'Activer'} l’équipement ${e.name}`}
                 onClick={() => void changeActive('equipment', e.id, e.active, e.name)} disabled={saving} />
             </div></td></tr>)}
-            {!visibleEquipment.length && <tr><td colSpan={5} className="empty">Aucun équipement enregistré.</td></tr>}
+            {!visibleEquipment.length && <tr><td colSpan={6} className="empty">Aucun équipement enregistré.</td></tr>}
           </tbody></table></div></section>
           <form className="panel editor" onSubmit={saveEq}><div className="panel-head"><h2>{eqId ? 'Modifier l’équipement' : 'Nouvel équipement'}</h2></div>
             <label>Atelier *<select required value={eq.workshop_id} onChange={e => setEq({ ...eq, workshop_id: e.target.value })}><option value="">Choisir un atelier</option>{workshops.filter(w => w.active || w.id === eq.workshop_id).map(w => <option key={w.id} value={w.id}>{w.code} — {w.name}</option>)}</select></label>
@@ -269,7 +348,7 @@ function App() {
           </form>
         </div>}
         {section === 'history' && <section className="panel"><div className="panel-head"><h2>Historique des changements</h2><span>Lecture seule · {audits.length} derniers événements</span></div><div className="table-scroll"><table><thead><tr><th>Date</th><th>Action</th><th>Référentiel</th><th>Code</th><th>Désignation</th></tr></thead><tbody>
-          {audits.map(a => { const item = a.after_row ?? a.before_row ?? {}; return <tr key={a.id}><td>{dateFr(a.created_at)}</td><td>{a.action === 'INSERT' ? 'Création' : a.action === 'UPDATE' ? 'Modification' : 'Suppression'}</td><td>{a.entity_type === 'workshops' ? 'Ateliers' : 'Équipements'}</td><td>{String(item.code ?? '')}</td><td>{String(item.name ?? '')}</td></tr>; })}
+          {audits.map(a => { const item = a.after_row ?? a.before_row ?? {}; return <tr key={a.id}><td>{dateFr(a.created_at)}</td><td>{a.action === 'INSERT' ? 'Création' : a.action === 'UPDATE' ? 'Modification' : 'Suppression'}</td><td>{a.entity_type === 'sites' ? 'Sites' : a.entity_type === 'workshops' ? 'Ateliers' : 'Équipements'}</td><td>{String(item.code ?? '')}</td><td>{String(item.name ?? '')}</td></tr>; })}
           {!audits.length && <tr><td colSpan={5} className="empty">Aucun changement enregistré.</td></tr>}
         </tbody></table></div><p className="small-note">Journal applicatif de référence. La conformité GxP et la validation informatique restent à instruire séparément.</p></section>}
         <footer>IPS-NEO · Une application · Une base · Modules intégrés après validation.</footer>
